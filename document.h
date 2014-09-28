@@ -54,7 +54,6 @@
 #define DOCUMENT_H_
 
 #include <string>
-#include <memory>
 #include <vector>
 
 /// @brief A container for a single HTML document.
@@ -74,14 +73,17 @@ class Document {
     };
 
     /// @brief An attribute that can be part of an Element.
-    class Attribute : public Node {
+    class Attribute {
       public:
+        Attribute(const char* name, const char* value) :
+            name_(name), value_(value) {}
+
         Attribute(const std::string& name, const std::string& value) :
             name_(name), value_(value) {}
 
-        virtual void GetHTML(std::string& out) const {
+        void GetHTML(std::string& out) const {
           out.append(name_);
-          out.append("=\"");
+          out.append("=\"", 2);
           size_t quote_pos = value_.find('"');
           if (quote_pos != std::string::npos) {
             // We need to escape the string (this should be an uncommon case).
@@ -94,7 +96,7 @@ class Document {
           }
           else
             out.append(value_);
-          out.append("\"");
+          out.append("\"", 1);
         }
 
       private:
@@ -105,7 +107,9 @@ class Document {
     /// @brief A text node (typically named "#text" in a DOM).
     class TextNode : public Node {
       public:
-        TextNode(const std::string& value) : value_(value) {}
+        explicit TextNode(const char* value) : value_(value) {}
+
+        explicit TextNode(const std::string& value) : value_(value) {}
 
         virtual void GetHTML(std::string& out) const {
           out.append(value_);
@@ -118,53 +122,79 @@ class Document {
     /// @brief An Element can have attributes and children.
     class Element : public Node {
       public:
-        Element(const std::string& name) : name_(name) {}
+        explicit Element(const char* name) : name_(name) {}
+
+        explicit Element(const std::string& name) : name_(name) {}
+
+        virtual ~Element() {
+          for (auto i = children_.begin(); i != children_.end(); ++i)
+            delete (*i);
+        }
 
         virtual void GetHTML(std::string& out) const {
-          out.append("<");
+          out.append("<", 1);
           out.append(name_);
           for (auto i = attributes_.begin(); i != attributes_.end(); ++i) {
-            out.append(" ");
-            i->get()->GetHTML(out);
+            out.append(" ", 1);
+            i->GetHTML(out);
           }
           if (children_.size() > 0) {
-            out.append(">");
+            out.append(">", 1);
             for (auto i = children_.begin(); i != children_.end(); ++i)
-              i->get()->GetHTML(out);
-            out.append("</");
+              (*i)->GetHTML(out);
+            out.append("</", 2);
             out.append(name_);
-            out.append(">");
+            out.append(">", 1);
           } else
-            out.append(" />");
+            out.append(" />", 3);
+        }
+
+        /// @brief Add an attribute to this Element.
+        /// @param name The attribute name.
+        /// @param value The attribute value.
+        void AddAttribute(const char* name, const char* value) {
+          attributes_.push_back(Attribute(name, value));
         }
 
         /// @brief Add an attribute to this Element.
         /// @param name The attribute name.
         /// @param value The attribute value.
         void AddAttribute(const std::string& name, const std::string& value) {
-          std::unique_ptr<Attribute> attribute(new Attribute(name, value));
-          attributes_.push_back(std::move(attribute));
+          attributes_.push_back(Attribute(name, value));
         }
 
         /// @brief Add a child to this Element.
         /// @param name The name of the new child element.
+        /// @returns The newly created Element.
+        Element* AddChild(const char* name) {
+          children_.push_back(new Element(name));
+          return reinterpret_cast<Element*>(children_.back());
+        }
+
+        /// @brief Add a child to this Element.
+        /// @param name The name of the new child element.
+        /// @returns The newly created Element.
         Element* AddChild(const std::string& name) {
-          std::unique_ptr<Node> node(new Element(name));
-          children_.push_back(std::move(node));
-          return reinterpret_cast<Element*>(children_[children_.size() - 1].get());
+          children_.push_back(new Element(name));
+          return reinterpret_cast<Element*>(children_.back());
+        }
+
+        /// @brief Add a text node child to this element.
+        /// @param value The text for the new text node.
+        void AddTextChild(const char* value) {
+          children_.push_back(new TextNode(value));
         }
 
         /// @brief Add a text node child to this element.
         /// @param value The text for the new text node.
         void AddTextChild(const std::string& value) {
-          std::unique_ptr<Node> node(new TextNode(value));
-          children_.push_back(std::move(node));
+          children_.push_back(new TextNode(value));
         }
 
       private:
         const std::string name_;
-        std::vector<std::unique_ptr<Node> > attributes_;
-        std::vector<std::unique_ptr<Node> > children_;
+        std::vector<Attribute> attributes_;
+        std::vector<Node*> children_;
     };
 
     Document() : root_(Element("html")) {}
