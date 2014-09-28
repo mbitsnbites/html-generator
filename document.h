@@ -86,6 +86,8 @@ class Document {
         void GetHTML(std::string& out) const {
           out.append(name_);
           out.append("=\"", 2);
+
+          // TODO: Better escaping (including &:s)?
           size_t quote_pos = value_.find('"');
           if (quote_pos != std::string::npos) {
             // We need to escape the string (this should be an uncommon case).
@@ -114,6 +116,7 @@ class Document {
         explicit TextNode(const std::string& value) : value_(value) {}
 
         virtual void GetHTML(std::string& out) const {
+          // TODO: Escape this string?
           out.append(value_);
         }
 
