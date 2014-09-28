@@ -34,14 +34,14 @@
 ///
 /// @section example Example usage
 /// @code{.cpp}
-///   Document doc;
+///   htmlgen::Document doc;
 ///
 ///   // Generate a document structure.
-///   Document::Element* body = doc.root()->AddChild("body");
-///   Document::Element* a = body->AddChild("a");
+///   htmlgen::Document::Element* body = doc.root()->AddChild("body");
+///   htmlgen::Document::Element* a = body->AddChild("a");
 ///   a->AddAttribute("href", "http://unlicense.org/");
 ///   a->AddTextChild("Click on me!");
-///   Document::Element* p = body->AddChild("p");
+///   htmlgen::Document::Element* p = body->AddChild("p");
 ///   p->AddTextChild("Hello world!");
 ///
 ///   // Convert the document to an HTML formatted string.
@@ -55,6 +55,8 @@
 
 #include <string>
 #include <vector>
+
+namespace htmlgen {
 
 /// @brief A container for a single HTML document.
 ///
@@ -215,5 +217,7 @@ class Document {
   private:
     Element root_;
 };
+
+} // namespace htmlgen
 
 #endif // DOCUMENT_H_
