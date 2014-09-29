@@ -1,3 +1,4 @@
+// -*- mode: c++; tab-width: 2; indent-tabs-mode: nil; -*-
 //----------------------------------------------------------------------------
 // A simple object oriented HTML document builder for C++.
 //
@@ -53,6 +54,7 @@
 #ifndef DOCUMENT_H_
 #define DOCUMENT_H_
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -77,51 +79,107 @@ class Document {
     /// @brief An attribute that can be part of an Element.
     class Attribute {
       public:
-        Attribute(const char* name, const char* value) :
-            name_(name), value_(value) {}
+        Attribute(const char* name, const char* value) : name_(name) {
+          SetEscapedValue(value, std::strlen(value));
+        }
 
         Attribute(const std::string& name, const std::string& value) :
-            name_(name), value_(value) {}
+            name_(name) {
+          SetEscapedValue(value.data(), value.size());
+        }
 
         void GetHTML(std::string& out) const {
           out.append(name_);
           out.append("=\"", 2);
-
-          // TODO: Better escaping (including &:s)?
-          size_t quote_pos = value_.find('"');
-          if (quote_pos != std::string::npos) {
-            // We need to escape the string (this should be an uncommon case).
-            std::string escaped(value_);
-            do {
-              escaped.replace(quote_pos, 1, "&quot;", 6);
-              quote_pos = escaped.find('"');
-            } while (quote_pos != std::string::npos);
-            out.append(escaped);
-          }
-          else
-            out.append(value_);
-          out.append("\"", 1);
+          out.append(value_);
+          out += '"';
         }
 
       private:
+        void SetEscapedValue(const char* value, size_t len) {
+          // We escape: " (0x22), & (0x26) and < (0x3c). The escape LUT is
+          // indexed by the character code (0-255) modulo 8.
+          static const char kEscapeLut[8] = {
+            1, 0, '"', 0, '<', 0, '&', 0
+          };
+
+          // Reserve space for the escaped string.
+          // Note: This is optimized for strings that need no escaping. To
+          // optimize for strings that may need escaping, but at some memory
+          // cost, reserve len + (len >> 1) instead.
+          value_.reserve(len);
+
+          // Copy the value string, and escape characters as needed.
+          for (size_t i = 0; i < len; ++i) {
+            char c = value[i];
+            if (kEscapeLut[c & 7] == c) {
+              switch (c) {
+              case '"':
+                value_.append("&#34;", 5); break;
+              case '&':
+                value_.append("&amp;", 5); break;
+              default:  // '<'
+                value_.append("&lt;", 4);
+              }
+            }
+            else
+              value_ += c;
+          }
+        }
+
         const std::string name_;
-        const std::string value_;
+        std::string value_;
     };
 
     /// @brief A text node (typically named "#text" in a DOM).
     class TextNode : public Node {
       public:
-        explicit TextNode(const char* value) : value_(value) {}
+        explicit TextNode(const char* value) {
+          SetEscapedValue(value, std::strlen(value));
+        }
 
-        explicit TextNode(const std::string& value) : value_(value) {}
+        explicit TextNode(const std::string& value) {
+          SetEscapedValue(value.data(), value.size());
+        }
 
         virtual void GetHTML(std::string& out) const {
-          // TODO: Escape this string?
           out.append(value_);
         }
 
       private:
-        const std::string value_;
+        void SetEscapedValue(const char* value, size_t len) {
+          // We escape: & (0x26), < (0x3c) and > (0x3e). The escape LUT is
+          // indexed by the character code (0-255) modulo 16.
+          static const char kEscapeLut[16] = {
+            1, 0, 0, 0, 0, 0, '&', 0,
+            0, 0, 0, 0, '<', 0, '>', 0
+          };
+
+          // Reserve space for the escaped string.
+          // Note: This is optimized for strings that need no escaping. To
+          // optimize for strings that may need escaping, but at some memory
+          // cost, reserve len + (len >> 1) instead.
+          value_.reserve(len);
+
+          // Copy the value string, and escape characters as needed.
+          for (size_t i = 0; i < len; ++i) {
+            char c = value[i];
+            if (kEscapeLut[c & 15] == c) {
+              switch (c) {
+              case '&':
+                value_.append("&amp;", 5); break;
+              case '<':
+                value_.append("&lt;", 4); break;
+              default:  // '>'
+                value_.append("&gt;", 4);
+              }
+            }
+            else
+              value_ += c;
+          }
+        }
+
+        std::string value_;
     };
 
     /// @brief An Element can have attributes and children.
@@ -137,33 +195,33 @@ class Document {
         }
 
         virtual void GetHTML(std::string& out) const {
-          out.append("<", 1);
+          out += '<';
           out.append(name_);
           for (auto i = attributes_.begin(); i != attributes_.end(); ++i) {
-            out.append(" ", 1);
+            out += ' ';
             i->GetHTML(out);
           }
           if (children_.size() > 0) {
-            out.append(">", 1);
+            out += '>';
             for (auto i = children_.begin(); i != children_.end(); ++i)
               (*i)->GetHTML(out);
             out.append("</", 2);
             out.append(name_);
-            out.append(">", 1);
+            out += '>';
           } else
-            out.append(" />", 3);
+            out.append("/>", 2);
         }
 
         /// @brief Add an attribute to this Element.
         /// @param name The attribute name.
-        /// @param value The attribute value.
+        /// @param value The attribute value (unescaped).
         void AddAttribute(const char* name, const char* value) {
           attributes_.push_back(Attribute(name, value));
         }
 
         /// @brief Add an attribute to this Element.
         /// @param name The attribute name.
-        /// @param value The attribute value.
+        /// @param value The attribute value (unescaped).
         void AddAttribute(const std::string& name, const std::string& value) {
           attributes_.push_back(Attribute(name, value));
         }
@@ -185,13 +243,13 @@ class Document {
         }
 
         /// @brief Add a text node child to this element.
-        /// @param value The text for the new text node.
+        /// @param value The text for the new text node (unescaped).
         void AddTextChild(const char* value) {
           children_.push_back(new TextNode(value));
         }
 
         /// @brief Add a text node child to this element.
-        /// @param value The text for the new text node.
+        /// @param value The text for the new text node (unescaped).
         void AddTextChild(const std::string& value) {
           children_.push_back(new TextNode(value));
         }
@@ -214,7 +272,7 @@ class Document {
     void GetHTML(std::string& out) const {
       out.append("<!DOCTYPE html>\n");
       root_.GetHTML(out);
-      out.append("\n");
+      out += '\n';
     }
 
   private:
