@@ -268,11 +268,11 @@ class Document {
             "area", "base", "br", "col", "embed", "hr", "img", "input",
             "keygen", "link", "meta", "param", "source", "track", "wbr"
           };
-          static const unsigned kNumVoidNames =
+          static const int kNumVoidNames =
               sizeof(kVoidNames) / sizeof(kVoidNames[0]);
 
           // Do a binary search.
-          unsigned imin = 0, imax = kNumVoidNames - 1;
+          int imin = 0, imax = kNumVoidNames - 1;
           while (imax >= imin) {
               unsigned imid = (imin + imax) / 2;
               int diff = std::strcmp(kVoidNames[imid], name_.data());
