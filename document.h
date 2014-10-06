@@ -201,15 +201,14 @@ class Document {
             out += ' ';
             i->GetHTML(out);
           }
-          if (children_.size() > 0) {
+          if (children_.size() > 0 || !IsVoidElement()) {
             out += '>';
             for (auto i = children_.begin(); i != children_.end(); ++i)
               (*i)->GetHTML(out);
             out.append("</", 2);
             out.append(name_);
-            out += '>';
-          } else
-            out.append("/>", 2);
+          }
+          out += '>';
         }
 
         /// @brief Add an attribute to this Element.
@@ -255,6 +254,39 @@ class Document {
         }
 
       private:
+        /// @brief Determine if this is a void element.
+        ///
+        /// The <a href="http://www.w3.org/TR/html5/syntax.html#void-elements">
+        /// HTML5 specification</a> defines a set of "void elements" that must
+        /// not have end tags.
+        /// @returns true if this is a void element.
+        /// @note The method is case sensitive, so an element with the name
+        /// "img" is treated as a void element, while an element with the name
+        /// "IMG" is not.
+        bool IsVoidElement() const {
+          static const char* const kVoidNames[] = {
+            "area", "base", "br", "col", "embed", "hr", "img", "input",
+            "keygen", "link", "meta", "param", "source", "track", "wbr"
+          };
+          static const unsigned kNumVoidNames =
+              sizeof(kVoidNames) / sizeof(kVoidNames[0]);
+
+          // Do a binary search.
+          unsigned imin = 0, imax = kNumVoidNames - 1;
+          while (imax >= imin) {
+              unsigned imid = (imin + imax) / 2;
+              int diff = std::strcmp(kVoidNames[imid], name_.data());
+              if (diff == 0)
+                return true;
+              else if (diff < 0)
+                imin = imid + 1;
+              else
+                imax = imid - 1;
+          }
+
+          return false;
+        }
+
         const std::string name_;
         std::vector<Attribute> attributes_;
         std::vector<Node*> children_;
