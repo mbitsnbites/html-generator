@@ -274,7 +274,7 @@ class Document {
           // Do a binary search.
           int imin = 0, imax = kNumVoidNames - 1;
           while (imax >= imin) {
-              unsigned imid = (imin + imax) / 2;
+              int imid = (imin + imax) / 2;
               int diff = std::strcmp(kVoidNames[imid], name_.data());
               if (diff == 0)
                 return true;
