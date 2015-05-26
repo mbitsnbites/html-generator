@@ -99,9 +99,7 @@ class Document {
         void SetEscapedValue(const char* value, size_t len) {
           // We escape: " (0x22), & (0x26) and < (0x3c). The escape LUT is
           // indexed by the character code (0-255) modulo 8.
-          static const char kEscapeLut[8] = {
-            1, 0, '"', 0, '<', 0, '&', 0
-          };
+          static const char kEscapeLut[8] = {1, 0, '"', 0, '<', 0, '&', 0};
 
           // Reserve space for the escaped string.
           // Note: This is optimized for strings that need no escaping. To
@@ -115,9 +113,11 @@ class Document {
             if (kEscapeLut[c & 7] == c) {
               switch (c) {
               case '"':
-                value_.append("&#34;", 5); break;
+                value_.append("&#34;", 5);
+                break;
               case '&':
-                value_.append("&amp;", 5); break;
+                value_.append("&amp;", 5);
+                break;
               default:  // '<'
                 value_.append("&lt;", 4);
               }
@@ -150,10 +150,8 @@ class Document {
         void SetEscapedValue(const char* value, size_t len) {
           // We escape: & (0x26), < (0x3c) and > (0x3e). The escape LUT is
           // indexed by the character code (0-255) modulo 16.
-          static const char kEscapeLut[16] = {
-            1, 0, 0, 0, 0, 0, '&', 0,
-            0, 0, 0, 0, '<', 0, '>', 0
-          };
+          static const char kEscapeLut[16] = {1, 0, 0, 0, 0, 0, '&', 0,
+                                              0, 0, 0, 0, '<', 0, '>', 0};
 
           // Reserve space for the escaped string.
           // Note: This is optimized for strings that need no escaping. To
@@ -167,9 +165,11 @@ class Document {
             if (kEscapeLut[c & 15] == c) {
               switch (c) {
               case '&':
-                value_.append("&amp;", 5); break;
+                value_.append("&amp;", 5);
+                break;
               case '<':
-                value_.append("&lt;", 4); break;
+                value_.append("&lt;", 4);
+                break;
               default:  // '>'
                 value_.append("&gt;", 4);
               }
@@ -265,23 +265,22 @@ class Document {
         /// "IMG" is not.
         bool IsVoidElement() const {
           static const char* const kVoidNames[] = {
-            "area", "base", "br", "col", "embed", "hr", "img", "input",
-            "keygen", "link", "meta", "param", "source", "track", "wbr"
-          };
+              "area", "base", "br", "col", "embed", "hr", "img", "input",
+              "keygen", "link", "meta", "param", "source", "track", "wbr"};
           static const int kNumVoidNames =
               sizeof(kVoidNames) / sizeof(kVoidNames[0]);
 
           // Do a binary search.
           int imin = 0, imax = kNumVoidNames - 1;
           while (imax >= imin) {
-              int imid = (imin + imax) / 2;
-              int diff = std::strcmp(kVoidNames[imid], name_.data());
-              if (diff == 0)
-                return true;
-              else if (diff < 0)
-                imin = imid + 1;
-              else
-                imax = imid - 1;
+            int imid = (imin + imax) / 2;
+            int diff = std::strcmp(kVoidNames[imid], name_.data());
+            if (diff == 0)
+              return true;
+            else if (diff < 0)
+              imin = imid + 1;
+            else
+              imax = imid - 1;
           }
 
           return false;
